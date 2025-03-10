@@ -196,23 +196,46 @@ try:
 
     # Step 4: Extract JSON data using JavaScript
     logger.info("Attempting to fetch JSON data")
-    script = '''
-        return fetch("https://www.dextools.io/shared/analytics/pairs/gainers?chain=solana")
-            .then(response => response.json())
-            .then(data => JSON.stringify(data))
-            .catch(error => {
-                console.error('Error:', error);
-                return JSON.stringify({error: error.message});
-            });
-    '''
-    json_data = driver.execute_script(script)
+    max_retries = 3
+    retry_count = 0
+    success = False
     
-    try:
-        data = json.loads(json_data)
-        logger.info("JSON data successfully parsed")
-    except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse JSON: {e}")
-        raise
+    while retry_count < max_retries and not success:
+        try:
+            if retry_count > 0:
+                sleep_time = random.uniform(1, 3)
+                logger.info(f"Retry attempt {retry_count + 1}/{max_retries}. Waiting {sleep_time:.2f} seconds before retry...")
+                time.sleep(sleep_time)
+            
+            script = '''
+                return fetch("https://www.dextools.io/shared/analytics/pairs/gainers?chain=solana")
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok: ' + response.status);
+                        }
+                        return response.json();
+                    })
+                    .then(data => JSON.stringify(data))
+                    .catch(error => {
+                        console.error('Error:', error);
+                        return JSON.stringify({error: error.message});
+                    });
+            '''
+            json_data = driver.execute_script(script)
+            data = json.loads(json_data)
+            
+            if 'error' in data:
+                raise Exception(f"Fetch error: {data['error']}")
+                
+            logger.info("JSON data successfully parsed")
+            success = True
+            
+        except Exception as e:
+            retry_count += 1
+            if retry_count >= max_retries:
+                logger.error(f"Failed to fetch data after {max_retries} attempts. Last error: {str(e)}")
+                raise
+            logger.warning(f"Attempt {retry_count} failed: {str(e)}")
 
     message = ""
     if data.get("code") == "OK":
