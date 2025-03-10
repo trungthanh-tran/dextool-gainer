@@ -1,7 +1,3 @@
-BOT_TOKEN = ""
-CHAT_ID = ""
-
-
 import platform
 import os
 import undetected_chromedriver as uc
@@ -15,6 +11,7 @@ import json
 import requests
 import logging
 import random
+import configparser
 from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime
 
@@ -51,6 +48,40 @@ logger.addHandler(file_handler)
 logger.addHandler(console_handler)
 
 logger.info("Script started")
+
+def load_config():
+    """
+    Load configuration from config.properties file
+    Returns tuple of (bot_token, chat_id)
+    """
+    config = configparser.ConfigParser()
+    config_file = 'config.properties'
+    
+    if not os.path.exists(config_file):
+        raise FileNotFoundError(f"Configuration file {config_file} not found")
+    
+    config.read(config_file)
+    
+    # Check if required section and values exist
+    if not config.has_section('telegram'):
+        raise ValueError("Missing [telegram] section in config file")
+    
+    bot_token = config.get('telegram', 'bot_token', fallback='')
+    chat_id = config.get('telegram', 'chat_id', fallback='')
+    
+    # Validate credentials
+    if not bot_token or not chat_id:
+        raise ValueError("Bot token and chat ID must be set in config.properties")
+        
+    return bot_token, chat_id
+
+# Load configuration
+try:
+    BOT_TOKEN, CHAT_ID = load_config()
+    logger.info("Configuration loaded successfully")
+except Exception as e:
+    logger.error(f"Failed to load configuration: {str(e)}")
+    raise
 
 # Detect the operating system
 os_name = platform.system()
