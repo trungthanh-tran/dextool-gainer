@@ -55,11 +55,15 @@ def load_config():
     Returns tuple of (bot_token, chat_id)
     """
     config = configparser.ConfigParser()
-    config_file = 'config.properties'
+    
+    # Get the directory of the current script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    config_file = os.path.join(script_dir, 'config.properties')
     
     if not os.path.exists(config_file):
         raise FileNotFoundError(f"Configuration file {config_file} not found")
     
+    logger.info(f"Loading configuration from: {config_file}")
     config.read(config_file)
     
     # Check if required section and values exist
