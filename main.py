@@ -73,11 +73,13 @@ try:
             symbol = item.get("token", {}).get("symbol")
             name = item.get("token", {}).get("name")
             token = item.get("_id", {}).get("token")
+            banner = item.get("_id", {}).get("banner")
+            url = f"<a href='https://www.dextools.io/resources/tokens/logos/{banner}'>{symbol}</a>"
             tokenShort = f"{token[:5]}...{token[-4:]}"
             tokenLink = f'<a href="http://solscan.io/token/{token}" target="_blank">{tokenShort}</a>'
             priceDiff = item.get("priceDiff")
             priceDiffFormatted = f"{priceDiff:,.2f}%"
-            message += f"Symbol: {symbol}\nName: {name}\nToken: {tokenLink}\nChange: {priceDiffFormatted}\n\n"
+            message += f"Symbol: {url}\nName: {name}\nToken: {tokenLink}\nChange: {priceDiffFormatted}\n\n"
     else:
         message = "Cannot parse code from dextool"
 
