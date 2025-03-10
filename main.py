@@ -93,7 +93,26 @@ chrome_options.add_argument('--no-sandbox')
 chrome_options.add_argument('--disable-dev-shm-usage')
 chrome_options.add_argument('--window-size=1920,1080')
 chrome_options.add_argument('--headless')  # Comment this line out for debugging
-chrome_options.binary_location = "/usr/bin/google-chrome"
+
+# Set Chrome binary location based on OS
+if os_name == "Windows":
+    chrome_paths = [
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+        os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
+    ]
+    chrome_binary = None
+    for path in chrome_paths:
+        if os.path.exists(path):
+            chrome_binary = path
+            break
+    if chrome_binary is None:
+        raise Exception("Chrome browser not found in default locations")
+    chrome_options.binary_location = chrome_binary
+    logger.info(f"Using Chrome binary at: {chrome_binary}")
+else:
+    chrome_options.binary_location = "/usr/bin/google-chrome"
+    logger.info("Using default Linux Chrome binary location")
 
 # Initialize undetected-chromedriver
 logger.info("Initializing Chrome driver with stealth settings")
@@ -119,9 +138,8 @@ def wait_for_page_load(driver, url, max_retries=2):
     retry_count = 0
     while retry_count <= max_retries:
         try:
-            if retry_count > 0:
-                logger.info(f"Retrying page load, attempt {retry_count} of {max_retries}")
-                driver.get(url)
+            logger.info(f"Loading URL: {url}" + (f" (Attempt {retry_count + 1})" if retry_count > 0 else ""))
+            driver.get(url)
             
             sleep_time = random.uniform(1, 3)
             logger.info(f"Waiting for {sleep_time:.2f} seconds")
@@ -178,12 +196,20 @@ try:
         return fetch("https://www.dextools.io/shared/analytics/pairs/gainers?chain=solana")
             .then(response => response.json())
             .then(data => JSON.stringify(data))
-            .catch(error => console.error('Error:', error));
+            .catch(error => {
+                console.error('Error:', error);
+                return JSON.stringify({error: error.message});
+            });
     '''
     json_data = driver.execute_script(script)
-    data = json.loads(json_data)
-    logger.info("JSON data successfully parsed")
     
+    try:
+        data = json.loads(json_data)
+        logger.info("JSON data successfully parsed")
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse JSON: {e}")
+        raise
+
     message = ""
     if data.get("code") == "OK":
         logger.info("Processing top 20 tokens")
@@ -193,7 +219,7 @@ try:
                 symbol = item.get("token", {}).get("symbol")
                 name = item.get("token", {}).get("name")
                 token = item.get("_id", {}).get("token")
-                banner = item.get("_id", {}).get("banner")
+                banner = item.get("token", {}).get("logo")
                 url = f"<a href='https://www.dextools.io/resources/tokens/logos/{banner}'>{symbol}</a>"
                 tokenShort = f"{token[:5]}...{token[-4:]}"
                 tokenLink = f'<a href="http://solscan.io/token/{token}" target="_blank">{tokenShort}</a>'
