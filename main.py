@@ -1,6 +1,8 @@
 import platform
 import os
 import undetected_chromedriver as uc
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -14,6 +16,9 @@ import random
 import configparser
 from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime
+from webdriver_manager.chrome import ChromeDriverManager
+import subprocess
+import platform
 
 # Create logs directory if it doesn't exist
 if not os.path.exists('logs'):
@@ -120,7 +125,35 @@ else:
 
 # Initialize undetected-chromedriver
 logger.info("Initializing Chrome driver with stealth settings")
-driver = uc.Chrome(options=chrome_options)
+try:
+    # Use webdriver_manager to handle ChromeDriver version automatically
+    service = Service(ChromeDriverManager().install())
+    driver = uc.Chrome(service=service, options=chrome_options)
+except Exception as e:
+    if "This version of ChromeDriver only supports Chrome version" in str(e):
+        logger.info("Attempting to update Chrome browser")
+        try:
+            if platform.system() == "Windows":
+                # Windows update command
+                subprocess.run([
+                    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+                    "--update"
+                ], check=True)
+            else:
+                # CentOS update command
+                subprocess.run([
+                    "sudo", "yum", "install", "-y", "google-chrome-stable"
+                ], check=True)
+            
+            logger.info("Chrome update completed, retrying driver initialization")
+            service = Service(ChromeDriverManager().install())
+            driver = uc.Chrome(service=service, options=chrome_options)
+        except Exception as update_error:
+            logger.error(f"Failed to update Chrome: {str(update_error)}")
+            raise
+    else:
+        logger.error(f"Failed to initialize Chrome driver: {str(e)}")
+        raise
 
 # Apply selenium-stealth
 stealth(driver,
